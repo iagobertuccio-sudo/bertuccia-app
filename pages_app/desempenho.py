@@ -9,17 +9,14 @@ def mostrar():
     # Métricas gerais
     col1, col2, col3, col4, col5 = st.columns(5)
 
-    total     = scalar("SELECT COUNT(*) FROM tips WHERE resultado IS NOT NULL")
-    greens    = scalar("SELECT COUNT(*) FROM tips WHERE resultado = 'green'")
-    reds      = scalar("SELECT COUNT(*) FROM tips WHERE resultado = 'red'")
-    taxa      = round(greens / total * 100, 1) if total > 0 else 0
+    total  = scalar("SELECT COUNT(*) FROM tips WHERE resultado IS NOT NULL")
+    greens = scalar("SELECT COUNT(*) FROM tips WHERE resultado = 'green'")
+    reds   = scalar("SELECT COUNT(*) FROM tips WHERE resultado = 'red'")
+    taxa   = round(greens / total * 100, 1) if total > 0 else 0
 
     # ROI simplificado
     df_roi = query("""
-        SELECT
-            odd_sugerida,
-            stake_unidades,
-            resultado
+        SELECT odd_sugerida, stake_unidades, resultado
         FROM tips
         WHERE resultado IN ('green', 'red')
     """)
@@ -44,7 +41,6 @@ def mostrar():
     with col4:
         st.metric("🎯 Taxa de Acerto", f"{taxa}%")
     with col5:
-        cor = "normal" if roi >= 0 else "inverse"
         st.metric("💰 ROI Geral", f"{roi}%", delta=f"{lucro_total:+.1f}U")
 
     st.markdown("---")
@@ -68,7 +64,6 @@ def mostrar():
             GROUP BY competicao
             ORDER BY taxa_pct DESC
         """)
-
         if df_liga.empty:
             st.info("Nenhum resultado registrado ainda.")
         else:
@@ -91,7 +86,6 @@ def mostrar():
             GROUP BY nivel_risco
             ORDER BY taxa_pct DESC
         """)
-
         if df_risco.empty:
             st.info("Nenhum resultado registrado ainda.")
         else:
@@ -123,7 +117,6 @@ def mostrar():
             if val == "green": return "background-color:#004d00;color:#00FF87"
             if val == "red":   return "background-color:#4d0000;color:#FF6B6B"
             return ""
-
         styled = df_hist.style.applymap(colorir, subset=["resultado"])
         st.dataframe(styled, use_container_width=True, hide_index=True)
 
@@ -131,11 +124,7 @@ def mostrar():
     st.subheader("📈 Evolução da Banca")
 
     df_banca = query("""
-        SELECT
-            data_analise,
-            odd_sugerida,
-            stake_unidades,
-            resultado
+        SELECT data_analise, odd_sugerida, stake_unidades, resultado
         FROM tips
         WHERE resultado IN ('green','red')
         ORDER BY data_analise ASC
@@ -144,15 +133,19 @@ def mostrar():
     if df_banca.empty:
         st.info("Aguardando resultados para gerar o gráfico de banca.")
     else:
-        banca   = 100.0
-        pontos  = [{"data": "Início", "banca": banca}]
+        banca  = 100.0
+        pontos = [{"data": "Início", "banca": banca}]
         for _, r in df_banca.iterrows():
             if r["resultado"] == "green":
                 banca += r["stake_unidades"] * (r["odd_sugerida"] - 1)
             else:
                 banca -= r["stake_unidades"]
-            pontos.append({"data": str(r["data_analise"]), "banca": round(banca, 2)})
+            pontos.append({
+                "data":  str(r["data_analise"]),
+                "banca": round(banca, 2)
+            })
 
-        df_grafico = pd.DataFrame(pontos).set_index("data")
-        st.line_chart(df_grafico)
-        st.caption("Banca inicial simulada: 100U")
+        if len(pontos) > 1:
+            df_grafico = pd.DataFrame(pontos).set_index("data")
+            st.line_chart(df_grafico)
+            st.caption("Banca inicial simulada: 100U")
